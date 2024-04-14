@@ -4,6 +4,7 @@
 
 #include <curl/curl.h>
 
+#include <concepts>
 #include <mutex>
 
 namespace http {
@@ -23,6 +24,32 @@ T* checkCurl(T* ptr)
     }
     return ptr;
 }
+
+class StringList {
+public:
+    template <std::same_as<std::string>... Args>
+    StringList(Args&&... args)
+    {
+        (append(std::forward<Args>(args)), ...);
+    }
+
+    void append(const std::string& string)
+    {
+        curl_slist* p =
+            checkCurl(curl_slist_append(_list.get(), string.c_str()));
+        _list.release();
+        _list.reset(p);
+    }
+
+    curl_slist* ptr()
+    {
+        return _list.get();
+    }
+
+private:
+    std::unique_ptr<curl_slist, void(*)(curl_slist*)> _list = {
+        nullptr, curl_slist_free_all};
+};
 
 class Handle {
 public:

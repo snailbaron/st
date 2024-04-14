@@ -2,6 +2,9 @@
 
 #include <curl/curl.h>
 
+#include <cctype>
+#include <algorithm>
+#include <format>
 #include <limits>
 #include <ostream>
 #include <sstream>
@@ -11,14 +14,21 @@ namespace http {
 
 namespace {
 
-size_t writeData(
+size_t readDataCallback(
+    char* buffer, size_t, size_t nitems, std::istream* input)
+{
+    input->read(buffer, nitems);
+    return input->gcount();
+}
+
+size_t writeDataCallback(
     void* buffer, size_t, size_t nmemb, std::ostream* output)
 {
     output->write(reinterpret_cast<const char*>(buffer), nmemb);
     return nmemb;
 }
 
-size_t headerCallback(
+size_t writeHeadersCallback(
     char* buffer,
     size_t,
     size_t nitems,
@@ -36,11 +46,47 @@ size_t headerCallback(
     return nitems;
 }
 
+void polishRequestInPlace(Request& request)
+{
+    const bool hasData = !request.data.empty();
+    const bool hasJson = !request.json.empty();
+
+    if (hasData && hasJson) {
+        throw e::Error{} << "cannot set both .data and .json in http::Request";
+    }
+
+    if (request.method == Method::UNSET) {
+        if (hasData || hasJson) {
+            request.method = Method::POST;
+        } else {
+            request.method = Method::GET;
+        }
+    }
+
+    if (!request.headers.contains("Content-Type")) {
+        if (hasJson) {
+            request.headers.emplace("Content-Type", "application/json");
+        }
+    }
+}
+
 } // namespace
+
+bool CaseInsensitiveLess::operator()(
+    std::string lhs, std::string rhs) const
+{
+    auto charToLower = [] (unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    };
+
+    std::ranges::transform(lhs, lhs.begin(), charToLower);
+    std::ranges::transform(rhs, rhs.begin(), charToLower);
+    return lhs < rhs;
+}
 
 std::string escape(const std::string& string)
 {
-    e::assert(string.length() <= std::numeric_limits<int>::max());
+    e::require(string.length() <= std::numeric_limits<int>::max());
     auto length = static_cast<int>(string.length());
 
     char* ptr = checkCurl(curl_easy_escape(nullptr, string.c_str(), length));
@@ -62,12 +108,15 @@ Init::~Init()
 Session::Session()
 {
     _handle.setopt(CURLOPT_FOLLOWLOCATION, 1);
-    _handle.setopt(CURLOPT_WRITEFUNCTION, writeData);
-    _handle.setopt(CURLOPT_HEADERFUNCTION, headerCallback);
+    _handle.setopt(CURLOPT_READFUNCTION, readDataCallback);
+    _handle.setopt(CURLOPT_WRITEFUNCTION, writeDataCallback);
+    _handle.setopt(CURLOPT_HEADERFUNCTION, writeHeadersCallback);
 }
 
-Response Session::operator()(const Request& request)
+Response Session::operator()(Request request)
 {
+    polishRequestInPlace(request);
+
     if (request.method == Method::POST) {
         _handle.setopt(CURLOPT_POST, 1);
     }
@@ -85,10 +134,25 @@ Response Session::operator()(const Request& request)
         }
         urlStream << escape(name) << "=" << escape(value);
     }
-
     auto urlString = urlStream.str();
-
     _handle.setopt(CURLOPT_URL, urlString.c_str());
+
+    auto headerStringList = StringList{};
+    for (const auto& [name, value] : request.headers) {
+        headerStringList.append(std::format("{}: {}", name, value));
+    }
+    _handle.setopt(CURLOPT_HTTPHEADER, headerStringList.ptr());
+
+    auto dataInput = std::istringstream{};
+    auto dataBuffer = std::string{};
+    if (!request.data.empty()) {
+        dataInput = std::istringstream{request.data};
+    } else if (!request.json.empty()) {
+        dataBuffer = request.json.dump();
+        dataInput = std::istringstream{dataBuffer};
+    }
+    dataInput.exceptions(std::ios::badbit);
+    _handle.setopt(CURLOPT_READDATA, &dataInput);
 
     auto responseData = std::ostringstream{};
     _handle.setopt(CURLOPT_WRITEDATA, &responseData);

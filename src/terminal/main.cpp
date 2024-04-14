@@ -15,10 +15,7 @@ int main() try
 
     auto session = http::Session{};
 
-
-
     auto response = session(http::Request{
-        .method = http::Method::GET,
         .url = "https://echo.free.beeceptor.com",
         .params = {
             {"one", "two"},
@@ -27,7 +24,20 @@ int main() try
         .headers = {
             {"Something-Something", "This is a header"},
             {"Another-Something", "This is another header"},
-        }
+        },
+        .json = {
+            {"some key", 12},
+            {"another key", "abcde"},
+            {"some list", {1, 2, 3, 4, 6}},
+            {"list of structs", {
+                {
+                    {"one", "two"},
+                },
+                {
+                    {"three", "four"},
+                }
+            }}
+        },
     });
 
     std::cout << "response code: " << response.code << "\n";

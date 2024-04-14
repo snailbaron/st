@@ -77,7 +77,7 @@ inline void handleError() noexcept
     } catch (...) { }
 }
 
-inline void assert(bool condition, std::string_view message = "")
+inline void require(bool condition, std::string_view message = "")
 {
     if (!condition) {
         auto error = Error{};
