@@ -27,6 +27,37 @@ public:
     Init& operator=(Init&&) = delete;
 };
 
+class URL {
+public:
+    constexpr URL(const char* url)
+        : _url{url}
+    { }
+
+    constexpr URL(std::string url)
+        : _url{std::move(url)}
+    { }
+
+    constexpr URL& operator/=(const URL& other)
+    {
+        _url += "/" + other._url;
+        return *this;
+    }
+
+    constexpr operator const std::string& () const
+    {
+        return _url;
+    }
+
+private:
+    std::string _url;
+};
+
+constexpr URL operator/(URL lhs, const URL& rhs)
+{
+    lhs /= rhs;
+    return lhs;
+}
+
 enum class Method {
     UNSET,
     GET,
@@ -43,6 +74,8 @@ struct Request {
 };
 
 struct Response {
+    nlohmann::json json() const;
+
     long code = 0;
     std::map<std::string, std::string> headers;
     std::string contents;

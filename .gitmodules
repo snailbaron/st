@@ -4,3 +4,9 @@
 [submodule "deps/json"]
 	path = deps/json
 	url = https://github.com/nlohmann/json.git
+[submodule "src/arg"]
+	path = src/arg
+	url = https://github.com/snailbaron/arg.git
+[submodule "deps/Catch2"]
+	path = deps/Catch2
+	url = https://github.com/catchorg/Catch2.git

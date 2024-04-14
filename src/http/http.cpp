@@ -105,6 +105,11 @@ Init::~Init()
     curl_global_cleanup();
 }
 
+nlohmann::json Response::json() const
+{
+    return nlohmann::json::parse(contents);
+}
+
 Session::Session()
 {
     _handle.setopt(CURLOPT_FOLLOWLOCATION, 1);

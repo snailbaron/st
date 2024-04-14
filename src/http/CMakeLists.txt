@@ -1,4 +1,4 @@
-add_library(http
+add_library(http STATIC
     curl.cpp
     http.cpp
 )

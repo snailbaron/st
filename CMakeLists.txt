@@ -10,7 +10,7 @@ add_subdirectory(deps)
 
 if(MSVC)
     add_compile_options(/W4 /WX)
-    add_compile_definitions(NOMINMAX)
+    add_compile_definitions(NOMINMAX _CRT_SECURE_NO_WARNINGS)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
