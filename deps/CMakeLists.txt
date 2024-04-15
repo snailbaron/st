@@ -11,4 +11,14 @@ add_subdirectory(SDL_image)
 add_subdirectory(SDL_mixer)
 add_subdirectory(SDL_ttf)
 
-# TODO: imgui
+add_library(imgui
+    imgui/imgui.cpp
+    imgui/imgui_demo.cpp
+    imgui/imgui_draw.cpp
+    imgui/imgui_tables.cpp
+    imgui/imgui_widgets.cpp
+
+    imgui/backends/imgui_impl_sdl2.cpp
+)
+target_include_directories(imgui PRIVATE imgui)
+target_link_libraries(imgui PRIVATE SDL2::SDL2)

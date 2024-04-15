@@ -14,8 +14,6 @@ using json = nlohmann::json;
 
 namespace cmd {
 
-
-
 void registerNew(const arg::MultiValue<std::string>& args)
 {
     auto parser = arg::Parser{};
