@@ -1,8 +1,10 @@
 #include "timer.hpp"
 #include "view.hpp"
+#include "world.hpp"
 
 #include <sdl.hpp>
 
+#include <exception>
 #include <iostream>
 
 int main(int, char*[]) try
@@ -11,9 +13,10 @@ int main(int, char*[]) try
     auto imgInit = img::Init{IMG_INIT_PNG};
     auto ttfInit = ttf::Init{};
 
-    auto view = View{};
+    auto world = World{};
+    auto view = View{world};
 
-    auto timer = FrameTimer{60};
+    auto timer = FrameTimer{240};
     for (;;) {
         if (!view.processInput()) {
             break;
@@ -29,7 +32,7 @@ int main(int, char*[]) try
     }
 
     return 0;
-} catch (const sdl::Error& e) {
+} catch (const std::exception& e) {
     std::cerr << e.what() << "\n";
     return EXIT_FAILURE;
 }

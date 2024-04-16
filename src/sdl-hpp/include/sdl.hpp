@@ -118,6 +118,8 @@ public:
     void clear();
     void present();
 
+    void setDrawColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+
     void copy(
         Texture& texture, const SDL_Rect* srcrect, const SDL_Rect* dstrect);
     void copy(
@@ -141,6 +143,10 @@ public:
     void fillRects(std::span<const SDL_Rect> rects);
     void fillRects(std::span<const SDL_FRect> rects);
 
+    void renderGeometry(std::span<const SDL_Vertex> vertices);
+    void renderGeometry(Texture& texture, std::span<const SDL_Vertex> vertices);
+    void renderGeometry(
+        std::span<const SDL_Vertex> vertices, std::span<const int> indices);
     void renderGeometry(
         Texture& texture,
         std::span<const SDL_Vertex> vertices,

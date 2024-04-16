@@ -154,6 +154,11 @@ void Renderer::present()
     SDL_RenderPresent(ptr());
 }
 
+void Renderer::setDrawColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+    check(SDL_SetRenderDrawColor(ptr(), r, g, b, a));
+}
+
 void Renderer::copy(
     Texture& texture, const SDL_Rect* srcrect, const SDL_Rect* dstrect)
 {
@@ -244,6 +249,31 @@ void Renderer::fillRects(std::span<const SDL_Rect> rects)
 void Renderer::fillRects(std::span<const SDL_FRect> rects)
 {
     check(SDL_RenderFillRectsF(ptr(), rects.data(), (int)rects.size()));
+}
+
+void Renderer::renderGeometry(std::span<const SDL_Vertex> vertices)
+{
+    check(SDL_RenderGeometry(
+        ptr(), nullptr, vertices.data(), (int)vertices.size(), nullptr, 0));
+}
+
+void Renderer::renderGeometry(
+    Texture& texture, std::span<const SDL_Vertex> vertices)
+{
+    check(SDL_RenderGeometry(
+        ptr(), texture.ptr(), vertices.data(), (int)vertices.size(), nullptr, 0));
+}
+
+void Renderer::renderGeometry(
+    std::span<const SDL_Vertex> vertices, std::span<const int> indices)
+{
+    check(SDL_RenderGeometry(
+        ptr(),
+        nullptr,
+        vertices.data(),
+        (int)vertices.size(),
+        indices.data(),
+        (int)indices.size()));
 }
 
 void Renderer::renderGeometry(
