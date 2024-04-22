@@ -27,13 +27,7 @@ public:
     Widget() {}
     virtual ~Widget() = 0 { }
 
-    virtual Widget* locate(int x, int y)
-    {
-        if (intersect(Point{(float)x, (float)y}, _position)) {
-            return this;
-        }
-        return nullptr;
-    }
+    virtual Widget* locate(int /*x*/, int /*y*/) { return nullptr; }
 
     float width() const;
     float height() const;
@@ -76,6 +70,7 @@ protected:
     virtual void onRelease() {}
 
     Rect<float> _position;
+    State _state = State::Idle;
 
 private:
     static constexpr auto stateTransitions = std::array{
@@ -85,8 +80,6 @@ private:
         std::array{State::Pressed, State::Lost, State::Pressed, State::Hovered}, // from pressed
         std::array{State::Pressed, State::Lost, State::Lost, State::Idle}, // from lost
     };
-
-    State _state = State::Idle;
 };
 
 class WidgetStorage {
@@ -131,6 +124,7 @@ public:
     Button* action(std::function<void()> action);
 
     void act() const override;
+    Widget* locate(int x, int y) override;
     void render(sdl::Renderer& renderer, const Vector<float>& offset = {}) override;
 
 private:
@@ -168,14 +162,22 @@ private:
     float _gap = 5.f;
 };
 
-class TextBox : public Widget {
+class Box : public Widget {
 public:
-    TextBox(sdl::Renderer& renderer);
+    Box* geometry(float x, float y, float w, float h);
 
-    TextBox* maxWidth(float w);
-    TextBox* maxHeight(float h);
-    TextBox* position(float x, float y, float w, float h);
-    TextBox* text(std::string_view text);
+    void render(sdl::Renderer& renderer, const Vector<float>& offset = {}) override;
+};
+
+class FlexTextBox : public Widget {
+public:
+    FlexTextBox() = default;
+    FlexTextBox(sdl::Renderer& renderer);
+
+    FlexTextBox* renderer(sdl::Renderer& renderer);
+    FlexTextBox* maxWidth(uint32_t w);
+    FlexTextBox* position(float x, float y, float w, float h);
+    FlexTextBox* text(std::string_view text);
 
     void render(sdl::Renderer& renderer, const Vector<float>& offset = {}) override;
 
@@ -184,12 +186,32 @@ private:
     static constexpr float _padding = 5.f;
     static constexpr float _scrollBarWidth = 3.f;
 
-    sdl::Renderer& _renderer;
+    sdl::Renderer* _renderer = nullptr;
     std::string _text;
-    float _maxWidth = 0.f;
-    float _maxHeight = 0.f;
-    float _testOffset = 0.f;
-    bool _testForward = true;
+    uint32_t _maxWidth = 500;
+    SDL_FRect _outerRect {};
+    SDL_FRect _innerRect {};
+    SDL_FRect _textRect {};
+    sdl::Texture _textTexture;
+};
+
+class TextWithPopup : public Widget {
+public:
+    TextWithPopup() = default;
+    explicit TextWithPopup(sdl::Renderer& renderer);
+
+    TextWithPopup* position(float x, float y);
+    TextWithPopup* text(const std::string& text);
+    TextWithPopup* popup(std::string popup);
+
+    Widget* locate(int x, int y) override;
+    void render(sdl::Renderer& renderer, const Vector<float>& offset = {}) override;
+
+private:
+    sdl::Renderer* _renderer = nullptr;
+    FlexTextBox _popup;
+    sdl::Texture _normalTexture;
+    sdl::Texture _hoverTexture;
 };
 
 class InfoBar : public Widget {

@@ -41,6 +41,11 @@ T* check(T* ptr, std::source_location sl = std::source_location::current())
     return ptr;
 }
 
+struct Size {
+    int w = 0;
+    int h = 0;
+};
+
 class Init {
 public:
     Init(uint32_t flags);
@@ -239,6 +244,8 @@ public:
     const TTF_Font* ptr() const;
 
     void setHinting(int hinting);
+
+    sdl::Size sizeUtf8(const std::string& text);
 
     sdl::Surface renderUtf8Blended(const char* text, const SDL_Color& fg);
     sdl::Surface renderUtf8Blended(const std::string& text, const SDL_Color& fg);

@@ -62,7 +62,7 @@ template <Coordinate U, Coordinate V>
 Vector<std::common_type_t<U, V>> operator+(
     const Vector<U>& lhs, const Vector<V>& rhs)
 {
-    return {lhs.x + rhs.x, lhs.y + lhs.y};
+    return {lhs.x + rhs.x, lhs.y + rhs.y};
 }
 
 template <Coordinate U, Coordinate V>
@@ -229,6 +229,12 @@ public:
     void size(Vector<T> size)
     {
         _size = std::move(size);
+    }
+
+    bool contains(const Point<T>& point)
+    {
+        return point.x >= minX() && point.x <= maxX() &&
+            point.y >= minY() && point.y <= maxY();
     }
 
     void shrink(T amount)

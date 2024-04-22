@@ -14,6 +14,16 @@ SDL_FRect toSdl(const Rect<float>& rect)
     };
 }
 
+SDL_FRect shift(const SDL_FRect& rect, const Vector<float>& shift)
+{
+    return SDL_FRect{
+        rect.x + shift.x,
+        rect.y + shift.y,
+        rect.w,
+        rect.h,
+    };
+}
+
 } // namespace
 
 float Widget::width() const
@@ -134,6 +144,14 @@ void Button::act() const
     _action();
 }
 
+Widget* Button::locate(int x, int y)
+{
+    if (_position.contains({(float)x, (float)y})) {
+        return this;
+    }
+    return nullptr;
+}
+
 void Button::render(sdl::Renderer& renderer, const Vector<float>& offset)
 {
     auto outerRect = _position + offset;
@@ -178,89 +196,117 @@ void VerticalPanel::render(sdl::Renderer& renderer, const Vector<float>& offset)
 
 }
 
-TextBox::TextBox(sdl::Renderer& renderer)
-    : _renderer(renderer)
+FlexTextBox::FlexTextBox(sdl::Renderer& renderer)
+    : _renderer(&renderer)
 { }
 
-TextBox* TextBox::maxWidth(float w)
+FlexTextBox* FlexTextBox::renderer(sdl::Renderer& renderer)
+{
+    _renderer = &renderer;
+    return this;
+}
+
+FlexTextBox* FlexTextBox::maxWidth(uint32_t w)
 {
     _maxWidth = w;
     return this;
 }
 
-TextBox* TextBox::maxHeight(float h)
-{
-    _maxHeight = h;
-    return this;
-}
-
-TextBox* TextBox::position(float x, float y, float w, float h)
+FlexTextBox* FlexTextBox::position(float x, float y, float w, float h)
 {
     _position = {x, y, w, h};
     return this;
 }
 
-TextBox* TextBox::text(std::string_view text)
+FlexTextBox* FlexTextBox::text(std::string_view text)
 {
     _text = text;
+
+    auto& font = resources(Font::Orbitron, 12);
+    auto textSurface = font.renderUtf8BlendedWrapped(
+        _text, SDL_Color{0, 0, 0, 255}, _maxWidth);
+    _outerRect = SDL_FRect{
+        _position.corner().x,
+        _position.corner().y,
+        (float)textSurface->w + 2 * _border + 2 * _padding,
+        (float)textSurface->h + 2 * _border + 2 * _padding,
+    };
+    _innerRect = SDL_FRect{
+        _outerRect.x + _border,
+        _outerRect.y + _border,
+        _outerRect.w - 2 * _border,
+        _outerRect.h - 2 * _border,
+    };
+    _textRect = SDL_FRect{
+        _innerRect.x + _padding,
+        _innerRect.y + _padding,
+        (float)textSurface->w,
+        (float)textSurface->h,
+    };
+
+    _textTexture = _renderer->createTextureFromSurface(textSurface);
+
     return this;
 }
 
-void TextBox::render(sdl::Renderer& renderer, const Vector<float>& offset)
+void FlexTextBox::render(sdl::Renderer& renderer, const Vector<float>& offset)
+{
+    renderer.setDrawColor(0, 0, 0, 255);
+    renderer.fillRect(shift(_outerRect, offset));
+
+    renderer.setDrawColor(170, 150, 150, 255);
+    renderer.fillRect(shift(_innerRect, offset));
+
+    renderer.copy(_textTexture, shift(_textRect, offset));
+}
+
+TextWithPopup::TextWithPopup(sdl::Renderer& renderer)
+    : _renderer(&renderer)
+    , _popup(renderer)
+{ }
+
+TextWithPopup* TextWithPopup::position(float x, float y)
+{
+    _position = {x, y, _position.width(), _position.height()};
+    return this;
+}
+
+TextWithPopup* TextWithPopup::text(const std::string& text)
 {
     auto& font = resources(Font::Orbitron, 14);
 
-    auto ts = font.renderUtf8BlendedWrapped(_text, SDL_Color{0, 0, 0, 255}, 693);
-    auto tt = _renderer.createTextureFromSurface(ts);
-    _renderer.setDrawColor(SDL_Color{170, 150, 150, 255});
-    _renderer.fillRect(SDL_FRect{25, 375, 800, 100});
-    _renderer.copy(tt, SDL_FRect{53.0f, 400, (float)ts->w, (float)ts->h});
+    auto normalSurface = font.renderUtf8Blended(text, SDL_Color{0, 0, 0, 255});
+    auto hoverSurface = font.renderUtf8Blended(text, SDL_Color{180, 0, 0, 255});
+    _position = {_position.minX(), _position.minY(), (float)normalSurface->w, (float)normalSurface->h};
 
+    _normalTexture = _renderer->createTextureFromSurface(normalSurface);
+    _hoverTexture = _renderer->createTextureFromSurface(hoverSurface);
 
-    auto maxTextWidth = static_cast<uint32_t>(_maxWidth - _border - _padding);
-    auto maxTextHeight = static_cast<uint32_t>(_maxHeight - _border - _padding);
+    return this;
+}
 
-    bool textFits = true;
-    auto textColor = SDL_Color{0, 0, 0, 255};
-    auto bgColor = SDL_Color{170, 150, 150, 255};
-    auto textSurface =
-        font.renderUtf8BlendedWrapped(_text, textColor, maxTextWidth);
-    auto srcrect = SDL_Rect{0, 0, textSurface->w, textSurface->h};
-    if ((uint32_t)textSurface->h > maxTextHeight) {
-        maxTextWidth -= static_cast<uint32_t>(_scrollBarWidth + 2 * _padding);
-        textSurface =
-            font.renderUtf8BlendedWrapped(_text, textColor, maxTextWidth);
-        textFits = false;
-        srcrect.h = maxTextHeight;
+TextWithPopup* TextWithPopup::popup(std::string popup)
+{
+    _popup.text(popup);
+    return this;
+}
+
+Widget* TextWithPopup::locate(int x, int y)
+{
+    if (_position.contains({(float)x, (float)y})) {
+        return this;
     }
-    auto textTexture = _renderer.createTextureFromSurface(textSurface);
+    return nullptr;
+}
 
-    auto boxWidth = textSurface->w + 2 * _padding + 2 * _border;
-    if (!textFits) {
-        boxWidth += _scrollBarWidth + _padding;
+void TextWithPopup::render(sdl::Renderer& renderer, const Vector<float>& offset)
+{
+    if (_state == State::Hovered || _state == State::Pressed) {
+        renderer.copy(_hoverTexture, toSdl(_position + offset));
+        _popup.render(renderer, offset + _position.corner().vector() + Vector<float>{0.f, _position.height() + 2.f});
+    } else {
+        renderer.copy(_normalTexture, toSdl(_position + offset));
     }
-    auto boxHeight =
-        std::min(_maxHeight, textSurface->h + 2 * _padding + 2 * _border);
-
-    auto outerRect = Rect<float>::fromCenter(_position.center() + offset, Vector<float>{boxWidth, boxHeight});
-    auto innerRect = outerRect.shrinked(_border);
-    auto textRect = innerRect.shrinked(_padding);
-    if (!textFits) {
-        textRect = Rect<float>{
-            textRect.minX(),
-            textRect.minY(),
-            textRect.width() - _scrollBarWidth - _padding,
-            textRect.height()};
-    }
-
-    renderer.setDrawColor(0, 0, 0, 255);
-    renderer.fillRect(toSdl(outerRect));
-
-    renderer.setDrawColor(170, 150, 150, 255);
-    renderer.fillRect(toSdl(innerRect));
-
-    auto badRect = toSdl(textRect);
-    renderer.copy(textTexture, badRect);
 }
 
 InfoBar::InfoBar()
@@ -288,3 +334,20 @@ void InfoBar::render(sdl::Renderer& renderer, const Vector<float>& offset)
 
 }
 
+Box* Box::geometry(float x, float y, float w, float h)
+{
+    _position = {x, y, w, h};
+    return this;
+}
+
+void Box::render(sdl::Renderer& renderer, const Vector<float>& offset)
+{
+    auto outerRect = _position + offset;
+    auto innerRect = outerRect.shrinked(2.f);
+
+    renderer.setDrawColor(0, 0, 0, 255);
+    renderer.fillRect(toSdl(outerRect));
+
+    renderer.setDrawColor(180, 150, 150, 255);
+    renderer.fillRect(toSdl(innerRect));
+}

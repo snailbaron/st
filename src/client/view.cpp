@@ -103,11 +103,20 @@ View::View(const World& world)
             std::cerr << "factions pressed\n";
         });
 
-    _ui.add<TextBox>(_renderer)
+    _ui.add<FlexTextBox>(_renderer)
         ->position(300, 100, 200, 200)
-        ->maxWidth(700)
-        ->maxHeight(100)
         ->text(
+            "The Cosmic Engineers are a group of highly advanced scientists and "
+            "engineers who seek to terraform and colonize new worlds, pushing the "
+            "boundaries of technology and exploration."
+        );
+
+    _ui.add<Box>()
+        ->geometry(300, 300, 100, 100);
+    _ui.add<TextWithPopup>(_renderer)
+        ->position(320, 320)
+        ->text("COSMIC")
+        ->popup(
             "The Cosmic Engineers are a group of highly advanced scientists and "
             "engineers who seek to terraform and colonize new worlds, pushing the "
             "boundaries of technology and exploration."

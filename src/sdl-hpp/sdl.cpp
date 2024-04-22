@@ -439,6 +439,13 @@ void Font::setHinting(int hinting)
     TTF_SetFontHinting(ptr(), hinting);
 }
 
+sdl::Size Font::sizeUtf8(const std::string& text)
+{
+    auto size = sdl::Size{};
+    check(TTF_SizeUTF8(ptr(), text.c_str(), &size.w, &size.h));
+    return size;
+}
+
 sdl::Surface Font::renderUtf8Blended(const char* text, const SDL_Color& fg)
 {
     return sdl::Surface{check(TTF_RenderUTF8_Blended(ptr(), text, fg))};
