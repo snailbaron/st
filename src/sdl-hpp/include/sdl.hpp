@@ -54,6 +54,7 @@ public:
 
 class RWops {
 public:
+    RWops() = default;
     explicit RWops(SDL_RWops* ptr);
     RWops(const std::filesystem::path& file, const char* mode);
     RWops(std::span<const std::byte> mem);
@@ -68,10 +69,17 @@ private:
 
 class Surface {
 public:
+    Surface() = default;
     explicit Surface(SDL_Surface* ptr);
 
     SDL_Surface* ptr();
     const SDL_Surface* ptr() const;
+
+    SDL_Surface& operator*();
+    const SDL_Surface& operator*() const;
+
+    SDL_Surface* operator->();
+    const SDL_Surface* operator->() const;
 
 private:
     std::unique_ptr<SDL_Surface, void(*)(SDL_Surface*)> _ptr{
@@ -80,6 +88,7 @@ private:
 
 class Texture {
 public:
+    Texture() = default;
     explicit Texture(SDL_Texture* ptr);
 
     SDL_Texture* ptr();
@@ -112,6 +121,7 @@ public:
     const SDL_Renderer* ptr() const;
 
     Texture createTextureFromSurface(Surface& surface);
+    Texture createTextureFromSurface(Surface&& surface);
     Texture loadTexture(const std::filesystem::path& file);
     Texture loadTexture(std::span<const std::byte> mem);
 
@@ -119,11 +129,14 @@ public:
     void present();
 
     void setDrawColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+    void setDrawColor(const SDL_Color& color);
 
     void copy(
         Texture& texture, const SDL_Rect* srcrect, const SDL_Rect* dstrect);
     void copy(
         Texture& texture, const SDL_Rect* srcrect, const SDL_FRect* dstrect);
+    void copy(Texture& texture, const SDL_Rect& srcrect, const SDL_FRect& dstrect);
+    void copy(Texture& texture, const SDL_FRect& dstrect);
 
     void drawPoint(int x, int y);
     void drawPoint(float x, float y);
@@ -225,11 +238,25 @@ public:
     TTF_Font* ptr();
     const TTF_Font* ptr() const;
 
+    void setHinting(int hinting);
+
     sdl::Surface renderUtf8Blended(const char* text, const SDL_Color& fg);
+    sdl::Surface renderUtf8Blended(const std::string& text, const SDL_Color& fg);
     sdl::Surface renderUtf8BlendedWrapped(
         const char* text, const SDL_Color& fg, uint32_t wrapLength);
+    sdl::Surface renderUtf8BlendedWrapped(
+        const std::string& text, const SDL_Color& fg, uint32_t wrapLength);
+
+    sdl::Surface renderUtf8Lcd(
+        const std::string& text, const SDL_Color& fg, const SDL_Color& bg);
+    sdl::Surface renderUtf8LcdWrapped(
+        const std::string& text,
+        const SDL_Color& fg,
+        const SDL_Color& bg,
+        uint32_t wrapLength);
 
 private:
+    sdl::RWops _rw;
     std::unique_ptr<TTF_Font, void(*)(TTF_Font*)> _ptr{
         nullptr, TTF_CloseFont};
 };

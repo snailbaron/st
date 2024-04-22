@@ -98,6 +98,26 @@ const SDL_Surface* Surface::ptr() const
     return _ptr.get();
 }
 
+SDL_Surface& Surface::operator*()
+{
+    return *_ptr;
+}
+
+const SDL_Surface& Surface::operator*() const
+{
+    return *_ptr;
+}
+
+SDL_Surface* Surface::operator->()
+{
+    return _ptr.get();
+}
+
+const SDL_Surface* Surface::operator->() const
+{
+    return _ptr.get();
+}
+
 Window::Window(const char* title, int x, int y, int w, int h, uint32_t flags)
 {
     _ptr.reset(check(SDL_CreateWindow(title, x, y, w, h, flags)));
@@ -133,6 +153,11 @@ Texture Renderer::createTextureFromSurface(Surface& surface)
     return Texture{check(SDL_CreateTextureFromSurface(ptr(), surface.ptr()))};
 }
 
+Texture Renderer::createTextureFromSurface(Surface&& surface)
+{
+    return Texture{check(SDL_CreateTextureFromSurface(ptr(), surface.ptr()))};
+}
+
 Texture Renderer::loadTexture(const std::filesystem::path& file)
 {
     return Texture{check(IMG_LoadTexture(ptr(), file.string().c_str()))};
@@ -159,6 +184,11 @@ void Renderer::setDrawColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
     check(SDL_SetRenderDrawColor(ptr(), r, g, b, a));
 }
 
+void Renderer::setDrawColor(const SDL_Color& color)
+{
+    setDrawColor(color.r, color.g, color.b, color.a);
+}
+
 void Renderer::copy(
     Texture& texture, const SDL_Rect* srcrect, const SDL_Rect* dstrect)
 {
@@ -169,6 +199,16 @@ void Renderer::copy(
     Texture& texture, const SDL_Rect* srcrect, const SDL_FRect* dstrect)
 {
     check(SDL_RenderCopyF(ptr(), texture.ptr(), srcrect, dstrect));
+}
+
+void Renderer::copy(Texture& texture, const SDL_Rect& srcrect, const SDL_FRect& dstrect)
+{
+    check(SDL_RenderCopyF(ptr(), texture.ptr(), &srcrect, &dstrect));
+}
+
+void Renderer::copy(Texture& texture, const SDL_FRect& dstrect)
+{
+    check(SDL_RenderCopyF(ptr(), texture.ptr(), nullptr, &dstrect));
 }
 
 void Renderer::drawPoint(int x, int y)
@@ -380,8 +420,8 @@ Font::Font(const std::filesystem::path& file, int ptsize)
 
 Font::Font(std::span<const std::byte> mem, int ptsize)
 {
-    auto rwops = sdl::RWops{mem};
-    _ptr.reset(check(TTF_OpenFontRW(rwops.ptr(), 0, ptsize)));
+    _rw = sdl::RWops{mem};
+    _ptr.reset(check(TTF_OpenFontRW(_rw.ptr(), 0, ptsize)));
 }
 
 TTF_Font* Font::ptr()
@@ -394,9 +434,19 @@ const TTF_Font* Font::ptr() const
     return _ptr.get();
 }
 
+void Font::setHinting(int hinting)
+{
+    TTF_SetFontHinting(ptr(), hinting);
+}
+
 sdl::Surface Font::renderUtf8Blended(const char* text, const SDL_Color& fg)
 {
     return sdl::Surface{check(TTF_RenderUTF8_Blended(ptr(), text, fg))};
+}
+
+sdl::Surface Font::renderUtf8Blended(const std::string& text, const SDL_Color& fg)
+{
+    return renderUtf8Blended(text.c_str(), fg);
 }
 
 sdl::Surface Font::renderUtf8BlendedWrapped(
@@ -404,6 +454,28 @@ sdl::Surface Font::renderUtf8BlendedWrapped(
 {
     return sdl::Surface{check(TTF_RenderUTF8_Blended_Wrapped(
         ptr(), text, fg, wrapLength))};
+}
+
+sdl::Surface Font::renderUtf8BlendedWrapped(
+    const std::string& text, const SDL_Color& fg, uint32_t wrapLength)
+{
+    return renderUtf8BlendedWrapped(text.c_str(), fg, wrapLength);
+}
+
+sdl::Surface Font::renderUtf8Lcd(
+    const std::string& text, const SDL_Color& fg, const SDL_Color& bg)
+{
+    return sdl::Surface{check(TTF_RenderUTF8_LCD(ptr(), text.c_str(), fg, bg))};
+}
+
+sdl::Surface Font::renderUtf8LcdWrapped(
+    const std::string& text,
+    const SDL_Color& fg,
+    const SDL_Color& bg,
+    uint32_t wrapLength)
+{
+    return sdl::Surface{check(TTF_RenderUTF8_LCD_Wrapped(
+        ptr(), text.c_str(), fg, bg, wrapLength))};
 }
 
 } // namespace ttf

@@ -5,11 +5,16 @@
 #include <fstream>
 #include <span>
 #include <sstream>
+#include <vector>
 
 namespace fs {
 
 std::filesystem::path home();
-std::string read(const std::filesystem::path& path);
+std::filesystem::path exe();
+std::filesystem::path exeDir();
+
+std::string readText(const std::filesystem::path& path);
+std::vector<std::byte> readBytes(const std::filesystem::path& path);
 
 class MemoryMap {
 public:

@@ -1,13 +1,10 @@
 #include "view.hpp"
 
-#include <imgui_impl_sdl2.h>
-#include <imgui_impl_sdlrenderer2.h>
-
 #include <cmath>
 
 namespace {
 
-SDL_FRect pointRect(const Point& screenPoint)
+SDL_FRect pointRect(const Point<float>& screenPoint)
 {
     return SDL_FRect{
         .x = screenPoint.x - 5,
@@ -19,7 +16,7 @@ SDL_FRect pointRect(const Point& screenPoint)
 
 } // namespace
 
-Point Camera::worldToScreen(const Point& worldPoint) const
+Point<float> Camera::worldToScreen(const Point<float>& worldPoint) const
 {
     return Point{
         .x = (worldPoint.x - worldUpLeft().x) * screenToWorldRatio(),
@@ -27,9 +24,9 @@ Point Camera::worldToScreen(const Point& worldPoint) const
     };
 }
 
-Point Camera::screenToWorld(const Point& screenPoint) const
+Point<float> Camera::screenToWorld(const Point<float>& screenPoint) const
 {
-    return Point{
+    return Point<float>{
         .x = worldUpLeft().x + screenPoint.x * worldToScreenRatio(),
         .y = worldUpLeft().y - screenPoint.y * worldToScreenRatio(),
     };
@@ -41,7 +38,7 @@ void Camera::updateScreenSize(int w, int h)
     _screenHeight = h;
 }
 
-void Camera::focus(const Point& worldPoint)
+void Camera::focus(const Point<float>& worldPoint)
 {
     _worldCenter = worldPoint;
 }
@@ -58,9 +55,9 @@ void Camera::move(int dx, int dy)
     _worldCenter.y += dy * worldToScreenRatio();
 }
 
-Point Camera::worldUpLeft() const
+Point<float> Camera::worldUpLeft() const
 {
-    return Point{
+    return Point<float>{
         .x = _worldCenter.x - (_screenWidth * 0.5f) * worldToScreenRatio(),
         .y = _worldCenter.y + (_screenHeight * 0.5f) * worldToScreenRatio(),
     };
@@ -87,20 +84,39 @@ View::View(const World& world)
         SDL_WINDOW_RESIZABLE}
     , _renderer{
         _window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC}
-    , _imgui(ImGui::CreateContext())
 {
-    ImGui_ImplSDL2_InitForSDLRenderer(_window.ptr(), _renderer.ptr());
-    ImGui_ImplSDLRenderer2_Init(_renderer.ptr());
+    resources.load(_renderer);
 
     _camera.updateScreenSize(1024, 768);
     _camera.focus({0, 0});
+
+    _ui.add<Button>(_renderer)
+        ->position(10, 10, 100, 30)
+        ->text("Contracts")
+        ->action([] {
+            std::cerr << "contracts pressed\n";
+        });
+    _ui.add<Button>(_renderer)
+        ->position(10, 45, 100, 30)
+        ->text("Factions")
+        ->action([] {
+            std::cerr << "factions pressed\n";
+        });
+
+    _ui.add<TextBox>(_renderer)
+        ->position(300, 100, 200, 200)
+        ->maxWidth(700)
+        ->maxHeight(100)
+        ->text(
+            "The Cosmic Engineers are a group of highly advanced scientists and "
+            "engineers who seek to terraform and colonize new worlds, pushing the "
+            "boundaries of technology and exploration."
+        );
 }
 
 View::~View()
 {
-    ImGui_ImplSDLRenderer2_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
-    ImGui::DestroyContext(_imgui);
+    resources.clear();
 }
 
 bool View::processInput()
@@ -110,30 +126,28 @@ bool View::processInput()
             return false;
         }
 
-        ImGui_ImplSDL2_ProcessEvent(&e);
-
-        if (!ImGui::GetIO().WantCaptureMouse) {
-            if (e.type == SDL_MOUSEBUTTONDOWN &&
-                    e.button.button == SDL_BUTTON_LEFT) {
-                _drag = true;
-            } else if (e.type == SDL_MOUSEBUTTONUP &&
-                    e.button.button == SDL_BUTTON_LEFT) {
-                _drag = false;
-            } else if (_drag && e.type == SDL_MOUSEMOTION) {
-                _camera.move(e.motion.xrel, e.motion.yrel);
-            } else if (e.type == SDL_MOUSEWHEEL) {
-                _camera.zoomIn(e.wheel.y);
-            } else if (e.type == SDL_WINDOWEVENT &&
-                    e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-                std::cerr << "size changed: " << e.window.data1 << " x " << e.window.data2 << "\n";
-                _camera.updateScreenSize(e.window.data1, e.window.data2);
-            } else if (e.type == SDL_WINDOWEVENT &&
-                    e.window.event == SDL_WINDOWEVENT_RESIZED) {
-                std::cerr << "resized: " << e.window.data1 << " x " << e.window.data2 << "\n";
-            }
+        if (_ui.processEvent(e)) {
+            continue;
         }
 
-
+        if (e.type == SDL_MOUSEBUTTONDOWN &&
+                e.button.button == SDL_BUTTON_LEFT) {
+            _drag = true;
+        } else if (e.type == SDL_MOUSEBUTTONUP &&
+                e.button.button == SDL_BUTTON_LEFT) {
+            _drag = false;
+        } else if (_drag && e.type == SDL_MOUSEMOTION) {
+            _camera.move(e.motion.xrel, e.motion.yrel);
+        } else if (e.type == SDL_MOUSEWHEEL) {
+            _camera.zoomIn(e.wheel.y);
+        } else if (e.type == SDL_WINDOWEVENT &&
+                e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+            std::cerr << "size changed: " << e.window.data1 << " x " << e.window.data2 << "\n";
+            _camera.updateScreenSize(e.window.data1, e.window.data2);
+        } else if (e.type == SDL_WINDOWEVENT &&
+                e.window.event == SDL_WINDOWEVENT_RESIZED) {
+            std::cerr << "resized: " << e.window.data1 << " x " << e.window.data2 << "\n";
+        }
     }
 
     return true;
@@ -141,15 +155,11 @@ bool View::processInput()
 
 void View::update(float delta)
 {
-    (void)delta;
+    _ui.update(delta);
 }
 
 void View::present()
 {
-    ImGui_ImplSDLRenderer2_NewFrame();
-    ImGui_ImplSDL2_NewFrame();
-    ImGui::NewFrame();
-
     _renderer.setDrawColor(30, 30, 30, 255);
     _renderer.clear();
 
@@ -163,14 +173,9 @@ void View::present()
             auto wp = _camera.worldToScreen(waypoint.point);
             _renderer.fillRect(pointRect(wp));
         }
-
-
     }
 
-    //ImGui::ShowDemoWindow();
-
-    ImGui::Render();
-    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+    _ui.render(_renderer);
 
     _renderer.present();
 }

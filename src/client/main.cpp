@@ -32,7 +32,7 @@ int main(int, char*[]) try
     }
 
     return 0;
-} catch (const std::exception& e) {
-    std::cerr << e.what() << "\n";
+} catch (...) {
+    e::handleError();
     return EXIT_FAILURE;
 }

@@ -4,6 +4,7 @@
 
 #ifdef _WIN32
     #include <Shlobj.h>
+    #include <Windows.h>
 #endif
 
 #include <stdexcept>
@@ -48,13 +49,39 @@ std::filesystem::path home()
             KF_FLAG_DEFAULT,
             NULL,
             &path) != S_OK) {
-        throw std::runtime_error{"failed to get user's home directory"};
+        throwWindowsError();
     }
     return std::filesystem::path{path};
 #endif
 }
 
-std::string read(const std::filesystem::path& path)
+std::filesystem::path exe()
+{
+#ifdef _WIN32
+    auto path = std::string(100, '\0');
+    auto l = GetModuleFileName(NULL, path.data(), (DWORD)path.size());
+    if (l == 0) {
+        throwWindowsError();
+    }
+
+    while (l == path.size()) {
+        path.resize(path.size() * 2);
+        l = GetModuleFileName(NULL, path.data(), (DWORD)path.size());
+        if (l == 0) {
+            throwWindowsError();
+        }
+    }
+
+    return path;
+#endif
+}
+
+std::filesystem::path exeDir()
+{
+    return exe().parent_path();
+}
+
+std::string readText(const std::filesystem::path& path)
 {
     auto input = std::ifstream{path, std::ios::binary};
     input.exceptions(std::ios::badbit | std::ios::failbit);
@@ -64,6 +91,17 @@ std::string read(const std::filesystem::path& path)
     input.close();
 
     return contents.str();
+}
+
+std::vector<std::byte> readBytes(const std::filesystem::path& path)
+{
+    auto input = std::ifstream{path, std::ios::binary | std::ios::ate};
+    input.exceptions(std::ios::badbit | std::ios::failbit);
+    auto fileSize = input.tellg();
+    auto bytes = std::vector<std::byte>(fileSize);
+    input.seekg(0);
+    input.read(reinterpret_cast<char*>(bytes.data()), fileSize);
+    return bytes;
 }
 
 MemoryMap::MemoryMap(const std::filesystem::path& path)

@@ -1,30 +1,30 @@
 #pragma once
 
+#include "widgets.hpp"
 #include "world.hpp"
-
-#include <imgui.h>
+#include "resources.hpp"
 
 #include <sdl.hpp>
 
 class Camera {
 public:
-    Point worldToScreen(const Point& worldPoint) const;
-    Point screenToWorld(const Point& screenPoint) const;
+    Point<float> worldToScreen(const Point<float>& worldPoint) const;
+    Point<float> screenToWorld(const Point<float>& screenPoint) const;
 
     void updateScreenSize(int w, int h);
-    void focus(const Point& worldPoint);
+    void focus(const Point<float>& worldPoint);
     void zoomIn(int amount);
     void move(int dx, int dy);
 
 private:
-    Point worldUpLeft() const;
+    Point<float> worldUpLeft() const;
     float worldToScreenRatio() const;
     float screenToWorldRatio() const;
 
     int _zoomLevel = 1;
     int _screenWidth = 0;
     int _screenHeight = 0;
-    Point _worldCenter;
+    Point<float> _worldCenter;
 };
 
 class View {
@@ -41,9 +41,8 @@ private:
 
     sdl::Window _window;
     sdl::Renderer _renderer;
-    ImGuiContext* _imgui = nullptr;
-
     Camera _camera;
+    UI _ui;
 
     bool _drag = false;
 };
